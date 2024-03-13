@@ -1,0 +1,325 @@
+<meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css?family=Gochi+Hand');
+
+
+body {
+  background-image: url('atm.jpg');
+  background-size: 975px 825px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  padding: 1rem;
+  box-sizing: border-box;
+  color: hsla(0, 0%, 98%, 0.956);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* 이 부분을 추가합니다. */
+}
+.custom-alert {
+  background-color: white;
+  color : black;
+  border: 1px solid black;
+  padding: 25px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+}
+
+.custom-alert p {
+  font-size: 35px; /* 폰트 크기 조정 */
+}
+
+.custom-alert button {
+  font-size: 30px; /* 버튼 내 텍스트 폰트 크기 조정 */
+}
+
+
+.intro {
+  text-align: center;
+  font-family: 'Gochi Hand', cursive;
+  max-width: 90ch;
+  margin: 0 auto;
+}
+
+p {
+  font-size: 1.2rem;
+  line-height: 1.8rem;
+}
+
+a {
+  color: #65c8ce;
+}
+
+code {
+  background: #f8f6f6;
+  border: 1px solid #fbf6f6;
+  border-radius: 6px;
+  line-height: 1.85714rem;
+  padding: 4px 4px 1px;
+  font-family: 'Gochi Hand', cursive;
+}
+
+video { 
+  width: 400px;
+  height: 400px;
+  object-fit: cover;
+}
+
+
+svg {
+  height: 60vh;
+  max-height: 400px;
+  min-width: 400px;
+  flex: 0;
+}
+
+.blush {
+  opacity: 0;
+}
+
+#label-container div {
+  color: black; /* 검은색으로 변경 */
+}
+
+
+.div-title {
+  font-size: 3rem;
+  text-align: center; 
+  width: 100%; 
+  margin-top: 20px; 
+  margin-bottom: 20px; 
+}
+.btn-small {
+  padding: 3px 6px; /* 내부 여백을 최소화합니다. */
+  font-size: 0.6rem; /* 글자 크기를 더 작게 조정합니다. */
+  border: 1px solid #ccc; /* 경계선을 얇게 유지합니다. */
+  line-height: 1; /* 라인 높이를 줄입니다. */
+  width: 50px; /* 버튼의 너비를 명시적으로 설정합니다. */
+  height: 20px; /* 버튼의 높이를 명시적으로 설정합니다. */
+  display: inline-block; /* 버튼을 인라인 블록으로 설정합니다. */
+  box-sizing: border-box; /* width와 height가 padding과 border를 포함하도록 합니다. */
+  margin: 2px; /* 주변 여백을 줄입니다. */
+  text-align: center; /* 텍스트가 버튼 중앙에 오도록 설정합니다. */
+}
+
+.container {
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center; /* 가운데 정렬 */
+  justify-content: center; /* 가운데 정렬 */
+  margin-top: auto; /* 예시 값, 필요에 따라 조정 */
+
+}
+
+
+</style>
+<div id="customAlert" class="custom-alert" style="display: none;">
+  <p>🔴 주의! 보이스 피싱이 강력하게 의심됩니다. 🔴</p>
+  <button onclick="closeCustomAlert()">확인</button>
+</div>
+
+<div class = "div-title">보이스피싱 예방 AI</div>
+<button type="button" class="btn-small" onclick="init()">Start</button>
+<!-- <button type="button" onclick="predict()">predict</button> -->
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+<div class ="container"><canvas id="canvas"></canvas></div>
+
+<div id="label-container"></div>
+
+<div class="intro">
+</div>
+
+<div class="container">
+  <video crossorigin="anonymous" autoplay class="player"width="400" height="700"></video>
+</div>
+<audio id="alertSound" src="alert.mp3" preload="auto"></audio>
+
+
+<script  src="https://code.jquery.com/jquery-latest.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+<script type="text/javascript">
+    // More API functions here:
+    // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/pose
+
+    let anomalyScores = []; // To store the anomaly scores
+    let lastAnomalyTime = 0; // To store the last time anomaly was detected
+
+    // the link to your model provided by Teachable Machine export panel
+    const URL = "my_model/";
+    let model, webcam, ctx, labelContainer, maxPredictions;
+
+    async function init() {
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+
+        // 모델 로드 부분
+        model = await tmPose.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+
+        // 웹캠 설정 부분
+        const width = 377;
+        const height = 377;
+        const flip = true; // 웹캠 미러링 여부
+        webcam = new tmPose.Webcam(width, height, flip); // 웹캠 사이즈 설정
+        await webcam.setup({width: width, height : height}); // 웹캠 접근 요청 및 설정
+        await webcam.play(); // 웹캠 재생
+        window.requestAnimationFrame(loop); // 애니메이션 루프 시작
+
+        // 웹캠 활성화
+        getVideo();
+
+        // 나머지 코드
+        const canvas = document.getElementById("canvas");
+        canvas.width = width; 
+        canvas.height = height;
+        ctx = canvas.getContext("2d");
+        labelContainer = document.getElementById("label-container");
+        for (let i = 0; i < maxPredictions; i++) {
+            labelContainer.appendChild(document.createElement("div"));
+        }
+    }
+
+    async function loop(timestamp) {
+        webcam.update(); // update the webcam frame
+        await predict();
+        window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+        // Prediction #1: run input through posenet
+        // estimatePose can take in an image, video or canvas html element
+        const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
+        // Prediction 2: run input through teachable machine classification model
+        const prediction = await model.predict(posenetOutput);
+
+        for (let i = 0; i < maxPredictions; i++) {
+            const classPrediction =
+                prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+            labelContainer.childNodes[i].innerHTML = classPrediction;
+        }
+
+        let anomalyScore = prediction[1].probability;
+        let currentTime = new Date().getTime();
+
+        if (anomalyScore > 0.9) {
+            if (lastAnomalyTime === 0) {
+                lastAnomalyTime = currentTime;
+            }
+            anomalyScores.push(anomalyScore);
+        } else {
+            lastAnomalyTime = 0;
+            anomalyScores = [];
+        }
+
+        checkForAnomalies();
+            
+
+        // finally draw the poses
+        drawPose(pose);
+        }
+        
+    function playAlertSound() {
+      var sound = document.getElementById("alertSound");
+      sound.play();
+    }
+
+    function showCustomAlert() {
+      document.getElementById("customAlert").style.display = "block";
+    }
+
+    function closeCustomAlert() {
+      document.getElementById("customAlert").style.display = "none";
+    }
+
+    function checkForAnomalies() {
+        let currentTime = new Date().getTime();
+
+        if (anomalyScores.length > 0 && (currentTime - lastAnomalyTime) >= 7000) {
+            playAlertSound();
+            showCustomAlert();
+            // Reset the variables
+            lastAnomalyTime = 0;
+            anomalyScores = [];
+        }
+    }
+
+
+    function drawPose(pose) {
+        if (webcam.canvas) {
+            ctx.drawImage(webcam.canvas, 0, 0);
+            // draw the keypoints and skeleton
+            if (pose) {
+                const minPartConfidence = 0.5;
+                tmPose.drawKeypoints(pose.keypoints, minPartConfidence, ctx);
+                tmPose.drawSkeleton(pose.keypoints, minPartConfidence, ctx);
+            }
+        }
+    }
+    
+    const dancing = new TimelineMax({repeat:-1, yoyo:true, paused:true})
+  .fromTo(".head", 1, { transformOrigin: "center", rotation: -20, ease: Sine.easeInOut },  { rotation: 5, ease: Sine.easeInOut },0 )
+  .fromTo(".tummy", 1, { transformOrigin: "center", xPercent: -4, scale: 1.03, rotation: -2, ease: Sine.easeInOut },  { xPercent: 0, rotation: 2,  ease : Sine.easeInOut },0 )
+  .to(".leg1", 1, { transformOrigin: "50% 20%", rotation: 30, ease : Sine.easeInOut },0 )
+  .to(".leg2", 1, {transformOrigin: "center", rotation: 13, ease: Sine.easeInOut },0 )
+  .fromTo(".arm1", 1, {transformOrigin: "80% 0%", rotation: 15, ease: Sine.easeInOut }, {transformOrigin: "80% 50%", rotation: -15, ease: Sine.easeInOut },0 )
+  .fromTo(".arm2", 1,{transformOrigin: "30% 30%", rotation: 15, ease: Sine.easeInOut },  {rotation: -15, ease: Sine.easeInOut },0 )
+
+
+const blinking = new TimelineMax({repeat:-1, yoyo:true, paused:true})
+.to(".eye", 0.2, {transformOrigin: "center", scaleY : 0.2, ease : Sine.easeInOut,}, 4 )
+
+const blushing = new TimelineMax({paused:true})
+  .to(".blush", 2, {autoAlpha: 1, ease : Sine.easeInOut}, 0 )
+  .to(".squint", 0.5, {transformOrigin: "center", scaleY : 0.2, ease : Sine.easeInOut}, 0 )
+  // .to(".squint", 1, {transformOrigin: "center", scaleY: 0.2, Sine.easeInOut}, 0 )
+
+
+const video = document.querySelector('.player')
+const refreshRate = 1000;
+
+function getVideo() {
+  navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+    .then(webCamFeed => {
+      video.srcObject = webCamFeed;
+      setInterval(findFaysh, refreshRate);
+    })
+    .catch(err => {
+      console.error('Oh no, you denied the webcam, no fun for you.', err)
+    })
+}
+
+const findFaysh = async () => {
+  const myWebcamFeed = document.querySelector('.player');
+  const faceDetector = new FaceDetector();
+
+  try {
+    const faces = await faceDetector.detect(myWebcamFeed);
+    console.log(faces[0]);
+    if(faces.length){
+      dancing.pause();
+      blushing.play(); 
+      blinking.pause();
+    } else {
+      dancing.play();
+      blinking.play();
+      blushing.reverse().timeScale(2.5)
+    }
+    } catch (error) {
+      console.log("oops, something went wrong with face detection")
+  };
+}
+
+// window.addEventListener('load', getVideo);
+</script>
