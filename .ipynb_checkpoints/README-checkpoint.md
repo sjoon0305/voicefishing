@@ -18,4 +18,4 @@
 - E-mail : **sjoon0305@naver.com**
 
 #### Voicefishing Security page
-- [Blog](https://sjoon0305.github.io/voicefishing/)
+- [Page](https://sjoon0305.github.io/voicefishing/)
